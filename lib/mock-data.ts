@@ -111,7 +111,7 @@ export const proofMeta: Record<ProofType, { label: string }> = {
   pin: { label: 'PIN code' },
 }
 
-function makeTimeline(status: OrderStatus, times: string[]): TimelineEvent[] {
+export function makeTimeline(status: OrderStatus, times: string[]): TimelineEvent[] {
   const steps = [
     'Order created',
     'Courier assigned',

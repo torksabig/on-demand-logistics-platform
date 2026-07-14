@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import {
   MapPin,
@@ -15,7 +16,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/status-badge'
-import { jobs as seedJobs, courierStats, type Job } from '@/lib/mock-data'
+import { courierStats } from '@/lib/mock-data'
+import { useStore } from '@/components/store-provider'
 import { cn } from '@/lib/utils'
 
 const vehicleIcon = {
@@ -24,7 +26,7 @@ const vehicleIcon = {
   van: Truck,
 } as const
 
-const vehicleFilters: { key: Job['vehicle'] | 'all'; label: string }[] = [
+const vehicleFilters: { key: 'bike' | 'car' | 'van' | 'all'; label: string }[] = [
   { key: 'all', label: 'All vehicles' },
   { key: 'bike', label: 'Bike' },
   { key: 'car', label: 'Car' },
@@ -32,7 +34,7 @@ const vehicleFilters: { key: Job['vehicle'] | 'all'; label: string }[] = [
 ]
 
 const priorityTone: Record<
-  Job['priority'],
+  'standard' | 'express' | 'same_day',
   { label: string; tone: 'muted' | 'brand' | 'warning' }
 > = {
   standard: { label: 'Standard', tone: 'muted' },
@@ -41,39 +43,40 @@ const priorityTone: Record<
 }
 
 export function JobBoard() {
-  const [vehicle, setVehicle] = useState<Job['vehicle'] | 'all'>('all')
+  const { pendingJobs, activeDeliveries, accept } = useStore()
+  const [vehicle, setVehicle] = useState<'bike' | 'car' | 'van' | 'all'>('all')
   const [sort, setSort] = useState<'payout' | 'distance' | 'recent'>('payout')
   const [accepted, setAccepted] = useState<string[]>([])
   const [online, setOnline] = useState(true)
 
   const list = useMemo(() => {
-    let l = seedJobs.filter(
+    let l = pendingJobs.filter(
       (j) => vehicle === 'all' || j.vehicle === vehicle,
     )
     l = [...l].sort((a, b) => {
       if (sort === 'payout') return b.payout - a.payout
       if (sort === 'distance') return a.distanceKm - b.distanceKm
-      return a.postedMinsAgo - b.postedMinsAgo
+      return b.createdAt.localeCompare(a.createdAt)
     })
     return l
-  }, [vehicle, sort])
+  }, [pendingJobs, vehicle, sort])
 
-  function toggleAccept(id: string) {
-    setAccepted((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    )
+  function handleAccept(id: string) {
+    const result = accept(id)
+    if (result) {
+      setAccepted((prev) => [...prev, id])
+    }
   }
 
   return (
     <div className="space-y-6">
-      {/* Heading + availability */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold tracking-tight">
             Available jobs
           </h2>
           <p className="text-sm text-muted-foreground">
-            {list.length} jobs near you · Market Square area
+            {list.length} jobs in Sarajevo · Centar zone
           </p>
         </div>
         <button
@@ -96,7 +99,26 @@ export function JobBoard() {
         </button>
       </div>
 
-      {/* Stats */}
+      {activeDeliveries.length > 0 && (
+        <div className="rounded-2xl border border-brand/30 bg-brand/5 p-4">
+          <p className="text-sm font-medium">
+            {activeDeliveries.length} active deliver
+            {activeDeliveries.length === 1 ? 'y' : 'ies'}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {activeDeliveries.map((d) => (
+              <Link
+                key={d.id}
+                href={`/carrier/active/${d.id}`}
+                className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium hover:border-brand"
+              >
+                {d.ref} → {d.dropoff.slice(0, 24)}…
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {courierStats.map((s) => (
           <div
@@ -118,7 +140,6 @@ export function JobBoard() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {vehicleFilters.map((f) => (
@@ -151,7 +172,6 @@ export function JobBoard() {
         </label>
       </div>
 
-      {/* Job list */}
       <div className="grid gap-4 md:grid-cols-2">
         {list.map((job) => {
           const VIcon = vehicleIcon[job.vehicle]
@@ -171,11 +191,9 @@ export function JobBoard() {
                     <VIcon className="size-4.5" />
                   </span>
                   <div>
-                    <p className="font-mono text-xs font-semibold">
-                      {job.ref}
-                    </p>
+                    <p className="font-mono text-xs font-semibold">{job.ref}</p>
                     <p className="text-xs text-muted-foreground">
-                      {job.business}
+                      {job.customer}
                     </p>
                   </div>
                 </div>
@@ -214,23 +232,25 @@ export function JobBoard() {
               <div className="mt-4 flex items-center justify-between">
                 <div>
                   <p className="flex items-center gap-1 font-display text-xl font-bold text-foreground">
-                    <Wallet className="size-4 text-brand" />${job.payout.toFixed(2)}
+                    <Wallet className="size-4 text-brand" />€
+                    {job.payout.toFixed(2)}
                   </p>
                   {job.codAmount > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Collect COD ${job.codAmount.toFixed(2)}
+                      Collect COD €{job.codAmount.toFixed(2)}
                     </p>
                   )}
                 </div>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="size-3" />
-                  {job.postedMinsAgo}m ago
+                  {job.createdAt}
                 </span>
               </div>
 
               <Button
                 size="lg"
-                onClick={() => toggleAccept(job.id)}
+                disabled={!online || isAccepted}
+                onClick={() => handleAccept(job.id)}
                 className={cn(
                   'mt-4 h-10',
                   isAccepted
@@ -241,7 +261,10 @@ export function JobBoard() {
                 {isAccepted ? (
                   <>
                     <Check className="size-4" />
-                    Accepted
+                    Accepted —{' '}
+                    <Link href={`/carrier/active/${job.id}`} className="underline">
+                      Start delivery
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -259,7 +282,7 @@ export function JobBoard() {
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-5 py-14 text-center">
           <Package className="size-8 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
-            No jobs match this vehicle type right now.
+            No pending jobs right now. Check back soon or post from the merchant dashboard.
           </p>
         </div>
       )}

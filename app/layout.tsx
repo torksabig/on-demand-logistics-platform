@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Grotesk, Geist_Mono } from 'next/font/google'
+import { StoreProvider } from '@/components/store-provider'
 import './globals.css'
 
 const inter = Inter({
@@ -22,10 +23,10 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Relay — On-demand logistics network',
+  title: 'Relay — Balkan last-mile logistics',
   description:
-    'Relay connects businesses with vetted local couriers and 3PLs for on-demand pickups, deliveries, and real-time tracking.',
-  generator: 'v0.app',
+    'B2B last-mile marketplace connecting Balkan SMEs with local couriers. Same-day delivery, COD, live tracking, and proof of delivery.',
+  manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
@@ -44,7 +45,7 @@ export default function RootLayout({
       className={`bg-background ${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
     >
       <body className="font-sans antialiased">
-        {children}
+        <StoreProvider>{children}</StoreProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

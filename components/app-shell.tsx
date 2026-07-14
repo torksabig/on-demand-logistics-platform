@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import {
   LayoutDashboard,
   Package,
@@ -18,24 +19,25 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/logo'
-import { Button } from '@/components/ui/button'
 
-type NavItem = { label: string; icon: typeof Package; active?: boolean }
+type NavItem = {
+  label: string
+  icon: typeof Package
+  href: string
+}
 
 const businessNav: NavItem[] = [
-  { label: 'Overview', icon: LayoutDashboard, active: true },
-  { label: 'Orders', icon: Package },
-  { label: 'Live map', icon: Map },
-  { label: 'Payments', icon: Wallet },
-  { label: 'Settings', icon: Settings },
+  { label: 'Overview', icon: LayoutDashboard, href: '/dashboard' },
+  { label: 'Orders', icon: Package, href: '/dashboard' },
+  { label: 'Live map', icon: Map, href: '/dashboard' },
+  { label: 'Payments', icon: Wallet, href: '/dashboard' },
 ]
 
 const courierNav: NavItem[] = [
-  { label: 'Available jobs', icon: ListChecks, active: true },
-  { label: 'My routes', icon: Route },
-  { label: 'Earnings', icon: Wallet },
-  { label: 'Ratings', icon: Star },
-  { label: 'Settings', icon: Settings },
+  { label: 'Available jobs', icon: ListChecks, href: '/jobs' },
+  { label: 'My routes', icon: Route, href: '/jobs' },
+  { label: 'Earnings', icon: Wallet, href: '/jobs' },
+  { label: 'Ratings', icon: Star, href: '/jobs' },
 ]
 
 export function AppShell({
@@ -50,6 +52,7 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const pathname = usePathname()
   const nav = role === 'business' ? businessNav : courierNav
   const switchTo =
     role === 'business'
@@ -58,7 +61,6 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-secondary/40">
-      {/* Sidebar */}
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0',
@@ -81,19 +83,20 @@ export function AppShell({
 
         <nav className="flex-1 space-y-1 px-3 py-4">
           {nav.map((item) => (
-            <a
+            <Link
               key={item.label}
-              href="#"
+              href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                item.active
+                pathname === item.href ||
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href))
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
               )}
             >
               <item.icon className="size-4.5" />
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -115,7 +118,6 @@ export function AppShell({
         />
       )}
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-6">
           <button

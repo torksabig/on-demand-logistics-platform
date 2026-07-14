@@ -4,12 +4,21 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { Order } from '@/lib/mock-data'
+import type { CreateOrderInput } from '@/lib/store'
+import type { Order, Vertical, CodMethod, ProofType } from '@/lib/mock-data'
 
 const priorities: { key: Order['priority']; label: string; hint: string }[] = [
   { key: 'standard', label: 'Standard', hint: 'Same day' },
   { key: 'express', label: 'Express', hint: '≤ 2 hours' },
   { key: 'same_day', label: 'ASAP', hint: 'Now' },
+]
+
+const verticals: { key: Vertical; label: string }[] = [
+  { key: 'pharmacy', label: 'Pharmacy' },
+  { key: 'flowers', label: 'Flowers' },
+  { key: 'retail', label: 'Retail' },
+  { key: 'groceries', label: 'Groceries' },
+  { key: 'spare_parts', label: 'Spare parts' },
 ]
 
 const fieldClass =
@@ -22,13 +31,21 @@ export function NewOrderDialog({
 }: {
   open: boolean
   onClose: () => void
-  onCreate: (order: Order) => void
+  onCreate: (input: CreateOrderInput) => void
 }) {
-  const [pickup, setPickup] = useState('')
+  const [pickup, setPickup] = useState('Warehouse 4, Industrial Park')
   const [dropoff, setDropoff] = useState('')
+  const [recipient, setRecipient] = useState('')
+  const [recipientPhone, setRecipientPhone] = useState('+387 6')
+  const [vertical, setVertical] = useState<Vertical>('retail')
   const [items, setItems] = useState('1')
   const [cod, setCod] = useState('')
+  const [codMethod, setCodMethod] = useState<CodMethod>('cash')
+  const [proofType, setProofType] = useState<ProofType>('photo')
   const [priority, setPriority] = useState<Order['priority']>('standard')
+  const [vehicle, setVehicle] = useState<'bike' | 'car' | 'van'>('car')
+  const [weightKg, setWeightKg] = useState('5')
+  const [window, setWindow] = useState('ASAP')
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -41,8 +58,9 @@ export function NewOrderDialog({
   if (!open) return null
 
   function reset() {
-    setPickup('')
     setDropoff('')
+    setRecipient('')
+    setRecipientPhone('+387 6')
     setItems('1')
     setCod('')
     setPriority('standard')
@@ -50,24 +68,21 @@ export function NewOrderDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const num = Math.floor(4827 + Math.random() * 900)
-    const order: Order = {
-      id: `o-${Date.now()}`,
-      ref: `RL-${num}`,
-      customer: 'Nordic Coffee Roasters',
-      pickup: pickup || 'Warehouse 4, Industrial Park',
+    onCreate({
+      pickup,
       dropoff: dropoff || 'New delivery address',
-      distanceKm: Number((2 + Math.random() * 12).toFixed(1)),
-      status: 'pending',
-      courier: null,
-      payout: Number((7 + Math.random() * 18).toFixed(1)),
-      codAmount: cod ? Number(cod) : 0,
-      createdAt: 'now',
-      eta: '—',
+      recipient: recipient || 'Customer',
+      recipientPhone,
+      vertical,
       items: Number(items) || 1,
+      codAmount: cod ? Number(cod) : 0,
+      codMethod: cod ? codMethod : 'prepaid',
+      proofType,
       priority,
-    }
-    onCreate(order)
+      vehicle,
+      weightKg: Number(weightKg) || 5,
+      window,
+    })
     reset()
     onClose()
   }
@@ -83,7 +98,7 @@ export function NewOrderDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-order-title"
-        className="relative z-10 w-full max-w-md rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-2xl"
+        className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-card p-6 shadow-2xl sm:rounded-2xl"
       >
         <div className="flex items-center justify-between">
           <h2
@@ -111,8 +126,8 @@ export function NewOrderDialog({
               id="pickup"
               value={pickup}
               onChange={(e) => setPickup(e.target.value)}
-              placeholder="Warehouse 4, Industrial Park"
               className={fieldClass}
+              required
             />
           </div>
           <div className="space-y-1.5">
@@ -123,9 +138,54 @@ export function NewOrderDialog({
               id="dropoff"
               value={dropoff}
               onChange={(e) => setDropoff(e.target.value)}
-              placeholder="112 Maple Street, Downtown"
+              placeholder="112 Ferhadija, Centar"
               className={fieldClass}
+              required
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="recipient" className="text-sm font-medium">
+                Recipient
+              </label>
+              <input
+                id="recipient"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                placeholder="Milan Jovanović"
+                className={fieldClass}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="phone" className="text-sm font-medium">
+                Phone
+              </label>
+              <input
+                id="phone"
+                value={recipientPhone}
+                onChange={(e) => setRecipientPhone(e.target.value)}
+                className={fieldClass}
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="vertical" className="text-sm font-medium">
+              Vertical
+            </label>
+            <select
+              id="vertical"
+              value={vertical}
+              onChange={(e) => setVertical(e.target.value as Vertical)}
+              className={fieldClass}
+            >
+              {verticals.map((v) => (
+                <option key={v.key} value={v.key}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -143,7 +203,7 @@ export function NewOrderDialog({
             </div>
             <div className="space-y-1.5">
               <label htmlFor="cod" className="text-sm font-medium">
-                COD amount ($)
+                COD amount (€)
               </label>
               <input
                 id="cod"

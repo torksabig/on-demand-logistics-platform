@@ -1,0 +1,16 @@
+{
+  "name": "Relay — Balkan Last-Mile Logistics",
+  "short_name": "Relay",
+  "description": "B2B last-mile marketplace for Balkan SMEs",
+  "start_url": "/jobs",
+  "display": "standalone",
+  "background_color": "#f8f9fb",
+  "theme_color": "#1e2740",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

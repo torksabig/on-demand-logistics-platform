@@ -1,26 +1,23 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import {
   Plus,
   TrendingUp,
-  ArrowUpRight,
   Search,
   MapPin,
   Package,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/status-badge'
-import {
-  orders as seedOrders,
-  businessStats,
-  weeklyVolume,
-  statusMeta,
-  type Order,
-  type OrderStatus,
-} from '@/lib/mock-data'
+import { weeklyVolume, statusMeta } from '@/lib/mock-data'
 import { NewOrderDialog } from '@/components/dashboard/new-order-dialog'
+import { useStore } from '@/components/store-provider'
+import { computeStats } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import type { OrderStatus } from '@/lib/mock-data'
 
 const filters: { key: OrderStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -31,10 +28,12 @@ const filters: { key: OrderStatus | 'all'; label: string }[] = [
 ]
 
 export function BusinessDashboard() {
-  const [orders, setOrders] = useState<Order[]>(seedOrders)
+  const { orders, create } = useStore()
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
   const [query, setQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  const stats = useMemo(() => computeStats(orders), [orders])
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
@@ -48,22 +47,28 @@ export function BusinessDashboard() {
     })
   }, [orders, filter, query])
 
-  const maxVolume = Math.max(...weeklyVolume.map((d) => d.orders))
+  const activeCount = orders.filter((o) =>
+    ['assigned', 'picked_up', 'in_transit'].includes(o.status),
+  ).length
 
-  function handleCreate(order: Order) {
-    setOrders((prev) => [order, ...prev])
-  }
+  const businessStats = [
+    { label: 'Active orders', value: stats.activeOrders, delta: `${activeCount} in progress`, trend: 'up' as const },
+    { label: 'On-time rate', value: stats.onTimeRate, delta: 'last 7 days', trend: 'up' as const },
+    { label: 'Proof captured', value: stats.proofCaptured, delta: 'delivered orders', trend: 'flat' as const },
+    { label: 'COD to reconcile', value: stats.codOutstanding, delta: 'pending collection', trend: 'flat' as const },
+  ]
+
+  const maxVolume = Math.max(...weeklyVolume.map((d) => d.orders))
 
   return (
     <div className="space-y-6">
-      {/* Page heading */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold tracking-tight">
             Good morning, Nordic Coffee
           </h2>
           <p className="text-sm text-muted-foreground">
-            Here is what is moving today, Saturday, July 11.
+            Sarajevo · {orders.length} orders in your network
           </p>
         </div>
         <Button
@@ -76,7 +81,6 @@ export function BusinessDashboard() {
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {businessStats.map((s) => (
           <div
@@ -99,7 +103,6 @@ export function BusinessDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Volume chart */}
         <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
@@ -129,13 +132,12 @@ export function BusinessDashboard() {
           </div>
         </div>
 
-        {/* Live map panel */}
         <div className="flex flex-col rounded-2xl border border-border bg-primary p-5 text-primary-foreground">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-base font-semibold">Live map</h3>
             <span className="inline-flex items-center gap-1.5 text-xs text-primary-foreground/70">
               <span className="size-1.5 animate-pulse rounded-full bg-brand" />
-              6 active
+              {activeCount} active
             </span>
           </div>
           <div className="relative mt-4 flex-1 overflow-hidden rounded-xl border border-primary-foreground/10 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.06),transparent_60%)]">
@@ -147,38 +149,20 @@ export function BusinessDashboard() {
                 backgroundSize: '28px 28px',
               }}
             />
-            <div className="absolute left-[22%] top-[30%] flex flex-col items-center">
+            <div className="absolute left-[22%] top-[30%]">
               <MapPin className="size-5 text-brand" />
             </div>
-            <div className="absolute left-[62%] top-[40%] flex flex-col items-center">
+            <div className="absolute left-[62%] top-[40%]">
               <MapPin className="size-5 text-success" />
             </div>
-            <div className="absolute left-[45%] top-[65%] flex flex-col items-center">
-              <Package className="size-4 text-primary-foreground" />
-            </div>
-            <svg
-              className="absolute inset-0 size-full"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M24 33 Q 45 18, 63 43"
-                stroke="var(--color-brand)"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                fill="none"
-                vectorEffect="non-scaling-stroke"
-              />
-            </svg>
           </div>
           <p className="mt-4 text-xs text-primary-foreground/60">
-            2 pickups pending · 4 en route · ETA window 10:45–11:20
+            {orders.filter((o) => o.status === 'pending').length} awaiting courier ·{' '}
+            {activeCount} en route
           </p>
         </div>
       </div>
 
-      {/* Orders */}
       <div className="rounded-2xl border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
           <h3 className="font-display text-base font-semibold">Recent orders</h3>
@@ -212,7 +196,6 @@ export function BusinessDashboard() {
           ))}
         </div>
 
-        {/* Table (desktop) */}
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
@@ -222,7 +205,7 @@ export function BusinessDashboard() {
                 <th className="px-5 py-3 font-medium">Courier</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 text-right font-medium">COD</th>
-                <th className="px-5 py-3 text-right font-medium">ETA</th>
+                <th className="px-5 py-3 text-right font-medium">Track</th>
               </tr>
             </thead>
             <tbody>
@@ -232,9 +215,14 @@ export function BusinessDashboard() {
                   className="border-b border-border/60 last:border-0 hover:bg-secondary/50"
                 >
                   <td className="px-5 py-3.5">
-                    <p className="font-mono text-xs font-semibold">{o.ref}</p>
+                    <Link
+                      href={`/dashboard/orders/${o.id}`}
+                      className="font-mono text-xs font-semibold hover:text-brand"
+                    >
+                      {o.ref}
+                    </Link>
                     <p className="text-xs text-muted-foreground">
-                      {o.items} items
+                      {o.items} items · {o.recipient}
                     </p>
                   </td>
                   <td className="px-5 py-3.5">
@@ -253,10 +241,17 @@ export function BusinessDashboard() {
                     />
                   </td>
                   <td className="px-5 py-3.5 text-right font-medium">
-                    {o.codAmount > 0 ? `$${o.codAmount.toFixed(2)}` : '—'}
+                    {o.codAmount > 0 ? `€${o.codAmount.toFixed(2)}` : '—'}
                   </td>
-                  <td className="px-5 py-3.5 text-right text-muted-foreground">
-                    {o.eta}
+                  <td className="px-5 py-3.5 text-right">
+                    <Link
+                      href={`/track/${o.trackToken}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs text-brand hover:underline"
+                    >
+                      Track
+                      <ExternalLink className="size-3" />
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -264,10 +259,13 @@ export function BusinessDashboard() {
           </table>
         </div>
 
-        {/* Cards (mobile) */}
         <div className="divide-y divide-border/60 md:hidden">
           {filtered.map((o) => (
-            <div key={o.id} className="flex flex-col gap-2 p-4">
+            <Link
+              key={o.id}
+              href={`/dashboard/orders/${o.id}`}
+              className="flex flex-col gap-2 p-4 hover:bg-secondary/30"
+            >
               <div className="flex items-center justify-between">
                 <span className="font-mono text-xs font-semibold">{o.ref}</span>
                 <StatusBadge
@@ -279,11 +277,10 @@ export function BusinessDashboard() {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{o.courier ?? 'Unassigned'}</span>
                 <span>
-                  {o.codAmount > 0 ? `COD $${o.codAmount.toFixed(2)}` : 'Prepaid'}{' '}
-                  · ETA {o.eta}
+                  {o.codAmount > 0 ? `COD €${o.codAmount.toFixed(2)}` : 'Prepaid'}
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
@@ -300,7 +297,7 @@ export function BusinessDashboard() {
       <NewOrderDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        onCreate={handleCreate}
+        onCreate={create}
       />
     </div>
   )
